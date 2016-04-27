@@ -1,0 +1,1 @@
+import autopicture.autopicture
