@@ -7,21 +7,13 @@ Framework for addons that update some fields based on others.
 For Anki sources, see [https://github.com/dae/anki]
 
 """
-if __name__ == '__main__':
-    # we're running unit tests and we'll be mocking these anyway.
-    #TODO: actually set up a proper environment for anki development.
-    addHook = None
-    mw = None
-    showInfo, askUser = None, None
-    QAction, SIGNAL = None, None
-else:
-    # loaded as a plugin, libraries should be available
-    from anki.hooks import addHook
-    from aqt import mw
-    from aqt.utils import showInfo, askUser
-    from aqt.qt import *
-
 import abc
+
+from anki.hooks import addHook
+from aqt import mw
+from aqt.utils import showInfo, askUser
+from aqt.qt import *
+
 
 class FieldUpdater():
     """Updates some note fields based on the content of others."""
@@ -177,10 +169,8 @@ class Addon():
 # unit tests
 if __name__ == '__main__':
 
-    #using the python3 testing library even though Anki is python2
-    #TODO: rewrite using mock for python2.
     import unittest
-    import unittest.mock as mock
+    import mock
 
 
     class TestFieldUpdater(FieldUpdater):
