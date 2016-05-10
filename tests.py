@@ -1,15 +1,6 @@
 import unittest
 
-from ankihorse import updateraddon
-from ankihorse.autopicture import imagefetch
-from ankihorse.autovoice import audiofetch
+suite = unittest.defaultTestLoader.discover('ankihorse', top_level_dir='.')
+runner = unittest.TextTestRunner()
+runner.run(suite)
 
-
-def RunTestsForModule(m):
-    print('Running tests for {} ...'.format(m.__name__))
-    unittest.main(module=m, exit=False)
-
-
-RunTestsForModule(updateraddon)
-RunTestsForModule(imagefetch)
-RunTestsForModule(audiofetch)
