@@ -141,7 +141,7 @@ class VoiceRSSFieldUpdater(FieldUpdater):
             
         """
         params = { 'key': self.API_KEY
-                 , 'src': query
+                 , 'src': query.encode('utf-8')
                  , 'hl': self._language_code
                  , 'f': self.FORMAT
                  , 'r': self.RATE

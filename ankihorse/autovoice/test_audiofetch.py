@@ -1,3 +1,5 @@
+# -*- encoding: utf-8 -*-
+
 # unit tests
 import unittest
 import mock
@@ -114,4 +116,8 @@ class buildUrlTestCase(unittest.TestCase):
         self.g = VoiceRSSFieldUpdater('src', 'tgt', 'english')
 
     def testNoExceptions(self):
-        pass
+        self.g.buildUrl('horse')
+
+    def testUnicode(self):
+        self.g.buildUrl(unicode('うにこで', 'utf-8'))
+
