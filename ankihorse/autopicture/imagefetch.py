@@ -96,11 +96,10 @@ class GoogleImageFieldUpdater(FieldUpdater):
 
         Args:
             query (str): The search query.
-            get_url (Callable[[str], str]): Takes a query and returns a url
-                of a jpg image. Fail by raising.
+            url (str): Takes a query and returns a url of a jpg image.
 
         Returns:
-            (str | None) The filename of the saved image, or None if failure.
+            (str) The filename of the saved image, NOT_FOUND_FILENAME on fail.
             
         """
         result = clazz.NOT_FOUND_FILENAME

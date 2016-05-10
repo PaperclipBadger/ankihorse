@@ -103,9 +103,9 @@ class VoiceRSSFieldUpdater(FieldUpdater):
         *NB: FieldUpdater promises to only call modifyFields if 
         self.sourceFields and self.targetFields exist in note.*
 
-        Attempts to download an image from google. If it can, adds the image
-        to the media database and updates the field to an appropriate img tag.
-        Else, returns without modifying the note.
+        Downloads TTS from the VoiceRSS api, adds it to the media database and
+        updates the target field appropriately. Doesn't modify the note if the
+        source field was blank.
 
         Args:
             note (anki.notes.Note): dictionary-like.
@@ -118,53 +118,48 @@ class VoiceRSSFieldUpdater(FieldUpdater):
         if not query:
             return False
 
-        voice_url = self.build_url(query)
-        filename = query + ".mp3"
-        filepath = os.path.join(self.DIRECTORY, filename)
-        self.downloadFromURL(voice_url, filename)
-        mw.col.media.addFile(os.path.abspath(unicode(filename)))
-        os.remove(filepath)
+        voice_url = self.buildUrl(query)
+        filepath = os.path.join(self.DIRECTORY, query + '.mp3')
+        self.downloadFromURL(voice_url, filepath)
+        mw.col.media.addFile(os.path.abspath(unicode(filepath)))
+        if os.path.isfile(filepath):
+            os.remove(filepath)
 
-        dst_text = u'[sound:{}]'.format(os.path.basename(filename))
+        dst_text = u'[sound:{}]'.format(os.path.basename(filepath))
         note[self._target_field] = dst_text
 
         return True
-    
-    @classmethod
-    def downloadFromURL(clazz, url, filename):
-        """Downloads an image from a url.
 
-        Args:
-            query (str): The search query.
-            get_url (Callable[[str], str]): Takes a query and returns a url
-                of a jpg image. Fail by raising.
-
-        Returns:
-            (str | None) The filename of the saved image, or None if failure.
-            
-        """
-        urllib.urlretrieve(url, filename)
-        return true
-
-    @classmethod
-    def build_url(clazz, query):
-        """Fetches the url of the first image of a google search for `query`.
+    def buildUrl(self, query):
+        """Fetches the url of an mp3 reading of `query`.
 
         Args:
             query (str): The search query.
 
         Returns:
-            (str | None) The url of the image, or None if failure.
+            (str): The url of an mp3 reading of query.
             
         """
-        params = { 'key': clazz.API_KEY
+        params = { 'key': self.API_KEY
                  , 'src': query
                  , 'hl': self._language_code
                  , 'f': self.FORMAT
                  , 'r': self.RATE
                  }
 
-        return clazz.SEARCH_URL + '?' + urllib.urlencode(params)
+        return self.URL + '?' + urllib.urlencode(params)
+    
+    @classmethod
+    def downloadFromURL(clazz, url, filepath):
+        """Downloads an image from a url.
+
+        Args:
+            query (str): The search query.
+            filepath (str): The path of the destination file.
+            
+        """
+        urllib.urlretrieve(url, filepath)
+
 
 
 import unittest
@@ -220,6 +215,7 @@ class InitialiseTestCase(unittest.TestCase):
         except ValueError:
             assertTrue(False, "initializer should not raise")
 
+
 @mock.patch('{}.mw'.format(__name__))
 class modifyFieldsTestCase(unittest.TestCase):
 
@@ -269,3 +265,13 @@ class modifyFieldsTestCase(unittest.TestCase):
         mock_mw.col.media.strip.return_value = self.query
         self.g.modifyFields(self.note)
         self.assertFalse(os.path.isfile(self.temp_path))
+
+
+class buildUrlTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.g = VoiceRSSFieldUpdater('src', 'tgt', 'english')
+
+    def testNoExceptions(self):
+        pass
+
