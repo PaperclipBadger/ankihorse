@@ -1,6 +1,6 @@
+#!/usr/bin/env python
 # -*- encoding: utf-8 -*-
-
-# unit tests
+"""Unit tests for audiofetch.py"""
 import unittest
 import mock
 

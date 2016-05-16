@@ -1,4 +1,6 @@
-# unit tests
+#!/usr/bin/env python
+# -*- encoding: utf-8 -*-
+"""Unit tests for updateraddon.py"""
 import unittest
 import mock
 
