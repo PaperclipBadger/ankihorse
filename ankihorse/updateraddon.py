@@ -9,11 +9,15 @@ Framework for addons that update some fields based on others.
 For Anki sources, see [https://github.com/dae/anki]
 
 """
+from __future__ import print_function
 import abc
+from functools import wraps
+import os
 
-from anki.hooks import addHook
+from anki.hooks import addHook, wrap
 from aqt import mw
-from aqt.utils import showInfo, askUser
+from aqt.editor import Editor
+from aqt.utils import shortcut, showInfo, askUser
 from aqt.qt import *
 
 
@@ -83,13 +87,13 @@ class Addon():
         self._model_name_substring = model_name_substring
 
         # add hook
-        addHook('editFocusLost', self.onFocusLost)
+        global button_action
+        button_action.register_callback(self.modifyFields)
+        #addHook('editFocusLost', self.onFocusLost)
 
         # add menu item
-        label = "{}: regenerate all".format(addon_name)
-        action = QAction(label, mw)
-        mw.connect(action, SIGNAL("triggered()"), self.regenerateAll)
-        mw.form.menuTools.addAction(action)
+        global menu_action
+        menu_action.register_callback(self.regenerateAll)
 
 
     def shouldModify(self, model):
@@ -169,3 +173,39 @@ class Addon():
         showInfo("Done regenerating images!")
 
 
+class CallbackCollector(object):
+    def __init__(self):
+        self.callbacks = []
+
+    def register_callback(self, callback):
+        self.callbacks.append(callback)
+
+    def execute_callbacks(self, *args, **kwargs):
+        for callback in self.callbacks:
+            callback(*args, **kwargs)
+
+# set up menu action
+menu_action = CallbackCollector()
+action = QAction("Field updater addon: regenerate all fields", mw)
+mw.connect(action, SIGNAL("triggered()"), menu_action.execute_callbacks)
+mw.form.menuTools.addAction(action)
+
+# set up editor button
+button_action = CallbackCollector()
+@wraps(Editor.setupButtons)
+def setupButtons(self):
+    """Monkey-patch the button-setter-upper to add a button."""
+    def callback():
+        button_action.execute_callbacks(self.note)
+        self.loadNote()
+        self.checkValid()
+    tooltip = "Run field updater addons. (Ctrl+f)"
+    b = self._addButton("updateFieldsButton", callback, tip=tooltip, 
+            key="Ctrl+f")
+
+    iconpath = "icons{sep}updateFieldsButton.png".format(sep=os.sep)
+    fullpath = os.path.join(os.path.dirname(__file__), iconpath)
+    print(fullpath)
+    b.setIcon(QIcon(fullpath))
+
+Editor.setupButtons = wrap(Editor.setupButtons, setupButtons)
