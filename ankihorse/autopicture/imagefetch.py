@@ -6,6 +6,7 @@ import json
 import os
 
 from aqt import mw
+from aqt.utils import showInfo
 
 from ..updateraddon import FieldUpdater
 
@@ -21,7 +22,6 @@ class GoogleImageFieldUpdater(FieldUpdater):
     API_KEY = 'AIzaSyAUjcQiTtz9Jyhx54yOydyGIKH6BQgmRdQ'
     CX = '016086122471418819595:b5hlfkq50kk'
     SEARCH_URL = "https://www.googleapis.com/customsearch/v1"
-    NOT_FOUND_FILENAME = 'imageNotFound.jpg'
     DIRECTORY = os.path.dirname(__file__)
 
     def __init__(self, query_field_name, target_field_name):
@@ -81,11 +81,11 @@ class GoogleImageFieldUpdater(FieldUpdater):
 
         filename = self.downloadImageFromURL(image_url)
         if not filename:
+            note[self._target_field] = "Image not found."
             return False
 
         mw.col.media.addFile(os.path.abspath(unicode(filename)))
-        if os.path.basename(filename) != self.NOT_FOUND_FILENAME:
-            os.remove(filename)
+        os.remove(filename)
 
         dst_text = u'<img src="{}" />'.format(os.path.basename(filename))
         note[self._target_field] = dst_text
@@ -104,9 +104,9 @@ class GoogleImageFieldUpdater(FieldUpdater):
             (str) The filename of the saved image, NOT_FOUND_FILENAME on fail.
             
         """
-        result = clazz.NOT_FOUND_FILENAME
-        basename = '.jpg'.join(url.split('/')[-1].split('.jpg')[:-1])
-        filename = os.path.join(clazz.DIRECTORY, basename + '.jpg')
+        result = None
+        name = url.split('/')[-1]
+        filename = os.path.join(clazz.DIRECTORY, name)
         try:
             urllib.urlretrieve(url, filename)
             result = filename
@@ -124,7 +124,6 @@ class GoogleImageFieldUpdater(FieldUpdater):
             (str | None) The url of the image, or None if failure.
             
         """
-        query = query + ' filetype:jpg'
         params = { 'q': query
                  , 'key': clazz.API_KEY
                  , 'cx': clazz.CX
@@ -132,8 +131,14 @@ class GoogleImageFieldUpdater(FieldUpdater):
                  }
 
         url = clazz.SEARCH_URL + '?' + urllib.urlencode(params)
-        response = urllib2.urlopen(url)
+        try:
+            response = urllib2.urlopen(url)
+        except urllib2.HTTPError as e:
+            if e.code == 403:
+                showInfo("403 Forbidden. You're probably out of google \
+requests. Try again tomorrow.")
+                return None
+            else:
+                raise
         result = json.load(response)
         return result['items'][0]['link']
-
-
