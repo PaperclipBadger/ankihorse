@@ -205,7 +205,6 @@ def setupButtons(self):
 
     iconpath = "icons{sep}updateFieldsButton.png".format(sep=os.sep)
     fullpath = os.path.join(os.path.dirname(__file__), iconpath)
-    print(fullpath)
     b.setIcon(QIcon(fullpath))
 
 Editor.setupButtons = wrap(Editor.setupButtons, setupButtons)
