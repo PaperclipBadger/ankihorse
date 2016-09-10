@@ -11,7 +11,7 @@ For Anki sources, see [https://github.com/dae/anki]
 """
 from __future__ import print_function
 import abc
-from functools import wraps
+from functools import wraps, partial
 import os
 
 from anki.hooks import addHook, wrap
@@ -88,12 +88,16 @@ class Addon():
 
         # add hook
         global button_action
-        button_action.register_callback(self.modifyFields)
+        button_action.register_callback(self.modifyFields, addon_name)
         #addHook('editFocusLost', self.onFocusLost)
 
         # add menu item
         global menu_action
-        menu_action.register_callback(self.regenerateAll)
+        menu_action.register_callback(self.regenerateAll, addon_name)
+        menu_item = "{} addon: regenerate all fields".format(addon_name)
+        action = QAction(menu_item, mw)
+        mw.connect(action, SIGNAL("triggered()"), self.regenerateAll)
+        mw.form.menuTools.addAction(action)
 
 
     def shouldModify(self, model):
@@ -173,38 +177,55 @@ class Addon():
         showInfo("Done regenerating images!")
 
 
-class CallbackCollector(object):
+class NamedCallbackCollector(object):
     def __init__(self):
         self.callbacks = []
 
-    def register_callback(self, callback):
-        self.callbacks.append(callback)
+    def register_callback(self, callback, name):
+        self.callbacks.append((callback, name))
 
     def execute_callbacks(self, *args, **kwargs):
-        for callback in self.callbacks:
+        for callback, name in self.callbacks:
             callback(*args, **kwargs)
 
+    def __call__(self, *args, **kwargs):
+        self.execute_callbacks(*args, **kwargs)
+
 # set up menu action
-menu_action = CallbackCollector()
-action = QAction("Field updater addon: regenerate all fields", mw)
-mw.connect(action, SIGNAL("triggered()"), menu_action.execute_callbacks)
+menu_action = NamedCallbackCollector()
+action = QAction("All field updater addons: regenerate all fields", mw)
+mw.connect(action, SIGNAL("triggered()"), menu_action)
 mw.form.menuTools.addAction(action)
 
 # set up editor button
-button_action = CallbackCollector()
+button_action = NamedCallbackCollector()
 @wraps(Editor.setupButtons)
 def setupButtons(self):
     """Monkey-patch the button-setter-upper to add a button."""
     def callback():
-        button_action.execute_callbacks(self.note)
+        button_action(self.note)
         self.loadNote()
         self.checkValid()
     tooltip = "Run field updater addons. (Ctrl+f)"
     b = self._addButton("updateFieldsButton", callback, tip=tooltip, 
             key="Ctrl+f")
-
-    iconpath = "icons{sep}updateFieldsButton.png".format(sep=os.sep)
+    iconpath = "icons{sep}updateFieldsAllButton.png".format(sep=os.sep)
     fullpath = os.path.join(os.path.dirname(__file__), iconpath)
     b.setIcon(QIcon(fullpath))
+
+    for index, item in enumerate(button_action.callbacks):
+        callback_, name = item
+        def callback(callback_=callback_, name=name):  # closures!
+            callback_(self.note)
+            self.loadNote()
+            self.checkValid()
+        key = "Ctrl+{}".format((index + 1) % 10) if index < 10 else None
+        tooltip = "Run {} addon.".format(name)
+        if key: tooltip += " ({})".format(key)
+        name = ''.join(name.split()) + 'button'
+        b = self._addButton(name, callback, tip=tooltip, key=key)
+        iconpath = "icons{sep}updateFieldsButton.png".format(sep=os.sep)
+        fullpath = os.path.join(os.path.dirname(__file__), iconpath)
+        b.setIcon(QIcon(fullpath))
 
 Editor.setupButtons = wrap(Editor.setupButtons, setupButtons)
