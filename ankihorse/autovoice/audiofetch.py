@@ -4,6 +4,7 @@ import urllib
 import os
 
 from aqt import mw
+from aqt.utils import showInfo
 
 from ..updateraddon import FieldUpdater
 
@@ -56,7 +57,7 @@ class VoiceRSSFieldUpdater(FieldUpdater):
 
     DIRECTORY = os.path.dirname(__file__)
 
-    def __init__(self, query_field_name, target_field_name, language):
+    def __init__(self, query_field_names, target_field_name, language):
         """Initialiser.
 
         Args:
@@ -77,27 +78,26 @@ class VoiceRSSFieldUpdater(FieldUpdater):
         else:
             raise ValueError('Not a valid language.')
 
-        self._query_field = query_field_name
+        self._query_fields = query_field_names
         self._target_field = target_field_name
 
-    def sourceFields(self):
-        """Return a container of names of source fields.
+    def shouldModify(self, model):
+        """Tests whether a model should be modified.
 
-        The modifyFields method is called when a field in the editor loses
-        focus and it's name is in self.sourceFields(). The modifyFields
-        method will not be called unless the note has all the source fields.
+        First checks whether the model name contains a substring if one was
+        specified during initialization, then whether the model has the
+        any of the query fields and the target field.
 
+        Args:
+            model (anki.models.Model): the model to check membership of.
+
+        Returns:
+            (bool) True iff the model should be modified.
+            
         """
-        return [self._query_field]
-
-    def targetFields(self):
-        """Return a container of names of target fields.
-
-        Target fields are required to exist in the model for modifyFields to
-        be called.
-
-        """
-        return [self._target_field]
+        fields = mw.col.models.fieldNames(model)
+        field_check = any(f in fields for f in self._query_fields)
+        return self._target_field in fields and field_check
 
     def modifyFields(self, note):
         """Modifies the fields of note.
@@ -107,7 +107,8 @@ class VoiceRSSFieldUpdater(FieldUpdater):
 
         Downloads TTS from the VoiceRSS api, adds it to the media database and
         updates the target field appropriately. Doesn't modify the note if the
-        source field was blank.
+        all source fields are blank. Otherwise, uses the first non-blank
+        source field in `self._query_fields`.
 
         Args:
             note (anki.notes.Note): dictionary-like.
@@ -116,13 +117,28 @@ class VoiceRSSFieldUpdater(FieldUpdater):
             (bool) True iff the note was modified.
 
         """
-        query = mw.col.media.strip(note[self._query_field])
+        for f in filter(lambda f: f in note, self._query_fields):
+            query = mw.col.media.strip(note[f])
+            if query:
+                break
+
         if not query:
             return False
 
         voice_url = self.buildUrl(query)
         filepath = os.path.join(self.DIRECTORY, query + '.mp3')
-        self.downloadFromURL(voice_url, filepath)
+        tries = 3
+        while tries > 0:
+            self.downloadFromURL(voice_url, filepath)
+            try:
+                assert os.path.getsize(filepath) > 512
+                break
+            except (AssertionError, os.error):
+                tries -= 1
+        if tries == 0:
+            showInfo("Failed to download audio for query {}.".format(query))
+            return False
+
         mw.col.media.addFile(os.path.abspath(unicode(filepath)))
         if os.path.isfile(filepath):
             os.remove(filepath)

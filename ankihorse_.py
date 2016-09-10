@@ -20,7 +20,7 @@ autopicture.initialise\
 autovoice.initialise\
         ( name='Japanese Autovoice'
         , language='japanese'
-        , source_field='Kana'
+        , source_fields=['Kanji', 'Kana']
         , target_field='Voice'
         , model_name_substring='japanese'
         ) 

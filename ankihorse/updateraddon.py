@@ -28,7 +28,6 @@ class FieldUpdater():
     def requiredFields(self):
         return set(self.sourceFields()) | set(self.targetFields())
 
-    @abc.abstractmethod
     def sourceFields(self):
         """Return a container of names of source fields.
 
@@ -37,9 +36,8 @@ class FieldUpdater():
         method will not be called unless the note has all the source fields.
 
         """
-        pass
+        NotImplemented
 
-    @abc.abstractmethod
     def targetFields(self):
         """Return a container of names of target fields.
 
@@ -47,7 +45,26 @@ class FieldUpdater():
         be called.
 
         """
-        pass
+        NotImplemented
+
+    def shouldModify(self, model):
+        """Tests whether a model should be modified.
+
+        First checks whether the model name contains a substring if one was
+        specified during initialization, then whether the model has the
+        required fields.
+
+        Args:
+            model (anki.models.Model): the model to check membership of.
+
+        Returns:
+            (bool) True iff the model should be modified.
+            
+        """
+        fields = mw.col.models.fieldNames(model)
+        required_fields = self._field_updater.requiredFields()
+        field_check = all([f in fields for f in required_fields])
+        return field_check
 
     @abc.abstractmethod
     def modifyFields(self, note):
@@ -85,6 +102,7 @@ class Addon():
         # state 
         self._field_updater = field_updater
         self._model_name_substring = model_name_substring
+        self.name = addon_name
 
         # add hook
         global button_action
@@ -103,9 +121,7 @@ class Addon():
     def shouldModify(self, model):
         """Tests whether a model should be modified.
 
-        First checks whether the model name contains a substring if one was
-        specified during initialization, then whether the model has the
-        required fields.
+        Checks the name of the model, then delegates to the FieldUpdater.
 
         Args:
             model (anki.models.Model): the model to check membership of.
@@ -118,12 +134,7 @@ class Addon():
         if self._model_name_substring != None:
             model_name = model['name'].lower()
             name_check = self._model_name_substring in model_name
-
-        fields = mw.col.models.fieldNames(model)
-        required_fields = self._field_updater.requiredFields()
-        field_check = all([f in fields for f in required_fields])
-
-        return (name_check and field_check)
+        return name_check and self._field_updater.shouldModify(model)
 
     def modifyFields(self, note):
         """Modifies the fields of `note`.
@@ -165,16 +176,23 @@ class Addon():
 
     def regenerateAll(self):
         """Applies the modification to each valid card in the database."""
-        if not askUser("Do you want to regenerate all images? "
-                       'This may take some time and will overwrite the '
-                       'destination fields.'):
+        if not askUser(('Do you want {} to regenerate all fields? '
+                        'This may take some time and will overwrite the '
+                        'destination fields.').format(self.name)):
             return
         models = [m for m in mw.col.models.all() if self.shouldModify(m)]
         # Find the notes in those models and give them kanji
+        counter = 0
         for model in models:
             for nid in mw.col.models.nids(model):
-                self._field_updater.modifyFields(mw.col.getNote(nid))
-        showInfo("Done regenerating images!")
+                note = mw.col.getNote(nid)
+                self._field_updater.modifyFields(note)
+                note.flush()
+                counter += 1
+        if counter > 0:
+            mw.reset()
+        showInfo("{} regenerated fields for {} cards."
+                 .format(self.name, counter))
 
 
 class NamedCallbackCollector(object):
