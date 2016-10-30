@@ -2,6 +2,7 @@
 # -*- encoding: utf-8 -*-
 import urllib
 import os
+import unicodedata
 
 from aqt import mw
 from aqt.utils import showInfo
@@ -125,6 +126,19 @@ class VoiceRSSFieldUpdater(FieldUpdater):
         if not query:
             return False
 
+        if self._language_code == 'ja-jp':
+            # switch placeholder on queries
+            assert isinstance(query, unicode)
+            placeholder = "KATAKANA-HIRAGANA PROLONGED SOUND MARK"
+            kana = ["HIRAGANA", "KATAKANA"]
+            replacement = u"、"
+            for i, char in enumerate(query):
+                if (unicodedata.name(char) == placeholder
+                    and (i == 0 or
+                         unicodedata.name(query[i-1])[:8] not in kana)):
+                    query = query[:i] + replacement + query[i + 1:]
+            query = query.replace(u"～", replacement)
+
         voice_url = self.buildUrl(query)
         filepath = os.path.join(self.DIRECTORY, query + '.mp3')
         tries = 3
@@ -137,6 +151,8 @@ class VoiceRSSFieldUpdater(FieldUpdater):
                 tries -= 1
         if tries == 0:
             showInfo("Failed to download audio for query {}.".format(query))
+            if os.path.isfile(filepath):
+                os.remove(filepath)
             return False
 
         mw.col.media.addFile(os.path.abspath(unicode(filepath)))
