@@ -62,9 +62,7 @@ class FieldUpdater():
             
         """
         fields = mw.col.models.fieldNames(model)
-        required_fields = self._field_updater.requiredFields()
-        field_check = all([f in fields for f in required_fields])
-        return field_check
+        return all(f in fields for f in self.requiredFields())
 
     @abc.abstractmethod
     def modifyFields(self, note):
