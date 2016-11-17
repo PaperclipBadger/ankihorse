@@ -125,7 +125,7 @@ class GoogleImageFieldUpdater(FieldUpdater):
             (str | None) The url of the image, or None if failure.
             
         """
-        params = { 'q': query
+        params = { 'q': query.encode('utf-8')
                  , 'key': clazz.API_KEY
                  , 'cx': clazz.CX
                  , 'searchType': 'image'
