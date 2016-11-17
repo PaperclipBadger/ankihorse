@@ -12,7 +12,7 @@ from ankihorse import autovoice
 
 autopicture.initialise\
         ( name='Japanese Autopicture'
-        , source_field=['Kanji', 'Kana']
+        , source_fields=['Kanji', 'Kana']
         , target_field='Picture'
         , model_name_substring='japanese'
         ) 
