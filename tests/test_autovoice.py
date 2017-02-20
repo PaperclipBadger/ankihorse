@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
-"""Unit tests for audiofetch.py"""
+"""Unit tests for autovoice.py"""
 import unittest
 import mock
 
@@ -8,8 +8,8 @@ import os
 import random
 import string
 
-from . import audiofetch
-from .audiofetch import VoiceRSSFieldUpdater
+from ankihorse import autovoice
+from ankihorse.autovoice import VoiceRSSFieldUpdater
 
 
 def randomstring(n):
@@ -59,7 +59,7 @@ class InitialiseTestCase(unittest.TestCase):
             assertTrue(False, "initializer should not raise")
 
 
-@mock.patch('{}.audiofetch.mw'.format(__name__))
+@mock.patch('{}.autovoice.mw'.format(__name__))
 class modifyFieldsTestCase(unittest.TestCase):
 
     def setUp(self):

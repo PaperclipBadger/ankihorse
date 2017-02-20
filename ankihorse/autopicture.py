@@ -76,13 +76,16 @@ class GoogleImageFieldUpdater(FieldUpdater):
             if query:
                 break
 
+        if not query:
+            return False
+
         image_url = self.firstImageFromGoogle(query)
         if not image_url:
             return False
 
         filename = self.downloadImageFromURL(image_url)
         if not filename:
-            note[self._target_field] = "Image not found."
+            showInfo("Image not found.")
             return False
 
         mw.col.media.addFile(os.path.abspath(unicode(filename)))

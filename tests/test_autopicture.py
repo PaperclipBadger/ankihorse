@@ -1,16 +1,54 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
-"""Unit tests for imagefetch.py"""
-import unittest
-import mock
-
+"""Unit tests for autopicture.py"""
 import os
 import random
 import string
+import urllib
 
-from . import imagefetch 
-from .imagefetch import GoogleImageFieldUpdater
+import pytest
+import mock
 
+from ankihorse import autopicture
+from ankihorse.autopicture import GoogleImageFieldUpdater
+
+
+@pytest.fixture
+def patches(monkeypatch):
+    patches = {}
+    for name in ('mw', 'showInfo'):
+        patches[name] = mock.MagicMock()
+        monkeypatch.setattr(autopicture, name, patches[name])
+    return patches
+
+@pytest.fixture
+def source_field(): return randomstring(9)
+
+@pytest.fixture
+def target_field(): return randomstring(9)
+
+@pytest.fixture
+def filename(): return randomstring(10)
+
+@pytest.fixture
+def patched_field_updater(monkeypatch, patches, tmpdir, filename,
+        source_field, target_field):
+    field_updater = GoogleImageFieldUpdater([source_field], [target_field])
+    for name in ('downloadImageFromURL', 'firstImageFromGoogle'):
+        monkeypatch.setattr(field_updater, name, mock.MagicMock())
+    
+    monkeypatch.setattr(field_updater, 'DIRECTORY', str(tmpdir))
+    temp_path = tmpdir.join(filename)
+    temp_path.ensure(file=True)
+    field_updater.downloadImageFromURL.return_value = str(temp_path)
+
+    return field_updater
+
+@pytest.fixture
+def note(source_field, target_field):
+    note = mock.MagicMock()
+    note.__contains__ = lambda _, f: f in {source_field, target_field}
+    return note
 
 def randomstring(n):
     """Generates a string of n random lower case letters."""
@@ -18,94 +56,48 @@ def randomstring(n):
     return ''.join(rand_chr() for _ in range(30))
 
 
-class InitialiseTestCase(unittest.TestCase):
+def test_url_fetch_failure(patched_field_updater, note):
+    patched_field_updater.firstImageFromGoogle.return_value = None
 
-    def setUp(self):
-        self.query_field = randomstring(30)
-        self.target_field = randomstring(30)
+    assert not patched_field_updater.modifyFields(note)
+    assert not note.__setitem__.called
 
-    def testQueryField(self):
-        g = GoogleImageFieldUpdater(self.query_field, '')
-        self.assertEqual(g.sourceFields(), [self.query_field])
+def test_image_fetch_failure(patched_field_updater, note):
+    patched_field_updater.downloadImageFromURL.return_value = None
 
-    def testTargetField(self):
-        g = GoogleImageFieldUpdater('', self.target_field)
-        self.assertEqual(g.targetFields(), [self.target_field])
+    assert not patched_field_updater.modifyFields(note)
+    assert not note.__setitem__.called
 
-    def testBoth(self):
-        g = GoogleImageFieldUpdater(self.query_field, self.target_field)
-        self.assertEqual(g.sourceFields(), [self.query_field])
-        self.assertEqual(g.targetFields(), [self.target_field])
+def test_blank_query(patches, patched_field_updater, note):
+    patches['mw'].col.media.strip.return_value = ''
 
+    assert not patched_field_updater.modifyFields(note)
+    assert not note.__setitem__.called
 
-@mock.patch('{}.imagefetch.mw'.format(__name__))
-class modifyFieldsTestCase(unittest.TestCase):
+def test_modified_correctly(patched_field_updater, note, 
+        target_field, filename):
+    assert patched_field_updater.modifyFields(note)
 
-    def setUp(self, *mocks):
-        ## create temp file
-        filename = randomstring(10) + '.jpg'
-        basedir = GoogleImageFieldUpdater.DIRECTORY
-        self.temp_path = os.path.join(basedir, filename)
-        with open(self.temp_path, 'a'):
-            pass
+    image_tag = u'<img src="{}" />'.format(filename)
+    assert note.__setitem__.called_once_with(target_field, image_tag)
 
-        ## create test object and patch methods
-        self.g = GoogleImageFieldUpdater(randomstring(9), randomstring(9))
-        self.g.downloadImageFromURL = mock.MagicMock()
-        self.g.downloadImageFromURL.return_value = self.temp_path
-        self.g.firstImageFromGoogle = mock.MagicMock()
-        self.note = mock.MagicMock()
+def test_add_to_media_database(patches, patched_field_updater, note):
+    assert patched_field_updater.modifyFields(note)
+    assert patches['mw'].col.media.addFile.called
 
-    def tearDown(self, *mocks):
-        ## delete temp file if it's still there
-        if os.path.isfile(self.temp_path):
-            os.remove(self.temp_path)
+def test_temp_file_removed(patched_field_updater, tmpdir, filename, note):
+    patched_field_updater.modifyFields(note)
+    assert not tmpdir.join(filename).check()
 
-    def testNotModifiedOnUrlFetchFailure(self, mock_mw):
-        self.g.firstImageFromGoogle.return_value = None
+def test_download(monkeypatch, tmpdir):
+    mock_retrieve = mock.MagicMock()
+    monkeypatch.setattr(urllib, 'urlretrieve', mock_retrieve)
+    monkeypatch.setattr(GoogleImageFieldUpdater, 'DIRECTORY', str(tmpdir))
 
-        self.assertFalse(self.g.modifyFields(self.note))
-        self.assertFalse(self.note.__setitem__.called)
-
-    def testNotModifiedOnImageFetchFailure(self, mock_mw):
-        self.g.downloadImageFromURL.return_value = None
-
-        self.assertFalse(self.g.modifyFields(self.note))
-        self.assertFalse(self.note.__setitem__.called)
-
-    def testNotModifiedOnBlankQuery(self, mock_mw):
-        mock_mw.col.media.strip.return_value = ''
-
-        self.assertFalse(self.g.modifyFields(self.note))
-        self.assertFalse(self.note.__setitem__.called)
-
-    def testModifiedCorrectly(self, mock_mw):
-        self.assertTrue(self.g.modifyFields(self.note))
-
-        target = self.g.targetFields()[0]
-        filename = os.path.basename(self.temp_path)
-        image_tag = u'<img src="{}" />'.format(filename)
-        self.assertTrue(self.note.__setitem__.called_once_with \
-                        (target, image_tag))
-
-    def testAddToMediaDatabase(self, mock_mw):
-        self.assertTrue(self.g.modifyFields(self.note))
-        self.assertTrue(mock_mw.col.media.addFile.called)
-
-    def testTempFileRemoved(self, mock_mw):
-        self.g.modifyFields(self.note)
-        self.assertFalse(os.path.isfile(self.temp_path))
-
-
-@mock.patch('urllib.urlretrieve')
-class DownloadImageFromURLTestCase(unittest.TestCase):
-
-    def testFileName(self, mock_retrieve):
-        website = 'http://' + randomstring(10) + '.com/'
-        remote_image = randomstring(10) + '.jpg'
-        url = website + remote_image
-
-        filename = GoogleImageFieldUpdater.downloadImageFromURL(url)
-
-        basedir = GoogleImageFieldUpdater.DIRECTORY
-        self.assertEqual(filename, os.path.join(basedir, remote_image))
+    website = 'http://' + randomstring(10) + '.com/'
+    remote_image = randomstring(10) + '.jpg'
+    url = website + remote_image
+    
+    filename = GoogleImageFieldUpdater.downloadImageFromURL(url)
+    
+    assert filename == str(tmpdir.join(remote_image))
