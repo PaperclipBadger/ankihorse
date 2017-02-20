@@ -8,7 +8,7 @@ import os
 from aqt import mw
 from aqt.utils import showInfo
 
-from ..updateraddon import FieldUpdater
+from .updateraddon import Addon, FieldUpdater
 
 
 class GoogleImageFieldUpdater(FieldUpdater):
@@ -143,3 +143,8 @@ requests. Try again tomorrow.")
                 raise
         result = json.load(response)
         return result['items'][0]['link']
+
+def initialise(name='autopicture', source_fields=['picture_src'], 
+        target_field='picture', model_name_substring=None):
+    field_updater = GoogleImageFieldUpdater(source_fields, target_field)
+    Addon(field_updater, name, model_name_substring=model_name_substring)
