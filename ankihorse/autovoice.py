@@ -7,7 +7,7 @@ import unicodedata
 from aqt import mw
 from aqt.utils import showInfo
 
-from ..updateraddon import FieldUpdater
+from .updateraddon import Addon, FieldUpdater
 
 
 class VoiceRSSFieldUpdater(FieldUpdater):
@@ -194,5 +194,8 @@ class VoiceRSSFieldUpdater(FieldUpdater):
         """
         urllib.urlretrieve(url, filepath)
 
-
-
+def initialise(name='autovoice', language='english', 
+        source_fields=['voice_src'], target_field='voice',
+        model_name_substring=None):
+    field_updater = VoiceRSSFieldUpdater(source_fields, target_field, language)
+    Addon(field_updater, name, model_name_substring=model_name_substring)
