@@ -83,6 +83,7 @@ class FieldUpdater():
 
 class Addon():
     """An addon that updates note fields based on the content of others."""
+    _initialised = False
 
     def __init__(self, field_updater, addon_name, model_name_substring=None):
         """Initialises the addon.
@@ -97,6 +98,15 @@ class Addon():
                 this string in their name will be modifi
 
         """
+        if not self._initialised:
+            self._initialised = True
+            # set up menu action
+            menu_action = NamedCallbackCollector()
+            action = QAction("All field updater addons: regenerate all fields", 
+                             mw)
+            mw.connect(action, SIGNAL("triggered()"), menu_action)
+            mw.form.menuTools.addAction(action)
+
         # state 
         self._field_updater = field_updater
         self._model_name_substring = model_name_substring
@@ -114,7 +124,6 @@ class Addon():
         action = QAction(menu_item, mw)
         mw.connect(action, SIGNAL("triggered()"), self.regenerateAll)
         mw.form.menuTools.addAction(action)
-
 
     def shouldModify(self, model):
         """Tests whether a model should be modified.
@@ -207,12 +216,6 @@ class NamedCallbackCollector(object):
     def __call__(self, *args, **kwargs):
         self.execute_callbacks(*args, **kwargs)
 
-# set up menu action
-menu_action = NamedCallbackCollector()
-action = QAction("All field updater addons: regenerate all fields", mw)
-mw.connect(action, SIGNAL("triggered()"), menu_action)
-mw.form.menuTools.addAction(action)
-
 # set up editor button
 button_action = NamedCallbackCollector()
 @wraps(Editor.setupButtons)
@@ -245,3 +248,4 @@ def setupButtons(self):
         b.setIcon(QIcon(fullpath))
 
 Editor.setupButtons = wrap(Editor.setupButtons, setupButtons)
+
