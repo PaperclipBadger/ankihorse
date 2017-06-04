@@ -36,7 +36,7 @@ class FieldUpdater():
         method will not be called unless the note has all the source fields.
 
         """
-        NotImplemented
+        raise NotImplementedError
 
     def targetFields(self):
         """Return a container of names of target fields.
@@ -45,7 +45,7 @@ class FieldUpdater():
         be called.
 
         """
-        NotImplemented
+        raise NotImplementedError
 
     def shouldModify(self, model):
         """Tests whether a model should be modified.
@@ -81,6 +81,39 @@ class FieldUpdater():
         pass
 
 
+class AnySourceFieldUpdater(FieldUpdater):
+    def __init__(self, query_field_names, target_field_name):
+        """Initialiser.
+
+        Args:
+            source_field_names (Sequence[str]): the names of the source 
+                fields.
+            target_field_name (str): the name of the target field.
+
+        """
+        self.source_fields = query_field_names
+        self.target_field = target_field_name
+
+    def sourceFields(self): return self.source_fields
+    def targetFields(self): return [self.target_field]
+
+    def shouldModify(self, model):
+        """Tests whether a model should be modified.
+
+        Checks whether the model has any of the query fields and the
+        target field.
+
+        Args:
+            model (anki.models.Model): the model to check membership of.
+
+        Returns:
+            (bool) True iff the model should be modified.
+            
+        """
+        fields = mw.col.models.fieldNames(model)
+        field_check = any(f in fields for f in self.source_fields)
+        return self.target_field in fields and field_check
+
 class Addon():
     """An addon that updates note fields based on the content of others."""
     _initialised = False
@@ -98,6 +131,8 @@ class Addon():
                 this string in their name will be modifi
 
         """
+        global button_action, menu_action
+
         if not self._initialised:
             self._initialised = True
             # set up menu action
@@ -113,12 +148,10 @@ class Addon():
         self.name = addon_name
 
         # add hook
-        global button_action
         button_action.register_callback(self.modifyFields, addon_name)
         #addHook('editFocusLost', self.onFocusLost)
 
         # add menu item
-        global menu_action
         menu_action.register_callback(self.regenerateAll, addon_name)
         menu_item = "{} addon: regenerate all fields".format(addon_name)
         action = QAction(menu_item, mw)

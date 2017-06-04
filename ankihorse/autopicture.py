@@ -6,9 +6,11 @@ import json
 import os
 
 from aqt import mw
-from aqt.utils import showInfo
+from aqt.utils import showInfo, getText
 
-from .updateraddon import Addon, FieldUpdater
+from .config import ConfigParser, CONFIG_FILE
+from .cognitive_services import bing_image
+from .updateraddon import Addon, FieldUpdater, AnySourceFieldUpdater
 
 
 class GoogleImageFieldUpdater(FieldUpdater):
@@ -147,7 +149,74 @@ requests. Try again tomorrow.")
         result = json.load(response)
         return result['items'][0]['link']
 
+class BingImageFieldUpdater(AnySourceFieldUpdater):
+    def __init__(self, query_field_names, target_field_name, locale):
+        """Initialiser.
+
+        Args:
+            query_field_name (str): the name of the query field.
+            target_field_name (str): the name of the target field.
+            langauge (str): Either the English name of a language, e.g.
+                "English", "Japanese", "Portuguese", "French (France)"
+                or a language code, e.g. "en-gb", "ja-jp"
+
+        Raises:
+            ValueError if the language is not supported.
+        """
+        AnySourceFieldUpdater.__init__(self, query_field_names, target_field_name)
+        self.locale = locale
+
+        parser = ConfigParser()
+        section = 'cognitive services'
+        option = 'bing search api key'
+        if parser.read(CONFIG_FILE) and parser.has_option(section, option):
+            self.api_key = parser.get(section, option)
+        else:
+            prompt = 'Please input API key for the Bing Search API.'
+            self.api_key = getText(prompt)[0].encode('utf-8')
+            if not parser.has_section(section):
+                parser.add_section(section)
+            parser.set(section, option, self.api_key)
+            with open(CONFIG_FILE, 'w') as f:
+                parser.write(f)
+
+    def modifyFields(self, note):
+        """Modifies the fields of note.
+
+        Downloads TTS from the Bing Speech api, adds it to the media 
+        database and updates the target field appropriately. Doesn't 
+        modify the note if the all source fields are blank. Otherwise, 
+        uses the first non-blank source field in `self._query_fields`.
+
+        Args:
+            note (anki.notes.Note): dictionary-like.
+
+        Returns:
+            (bool) True iff the note was modified.
+
+        """
+        for f in filter(lambda f: f in note, self.sourceFields()):
+            query = mw.col.media.strip(note[f])
+            if query:
+                break
+
+        if not query:
+            return False
+
+        filepath = self.get_file(query.encode('utf-8'))
+        mw.col.media.addFile(os.path.abspath(unicode(filepath)))
+        dest = u'<image src="{}"/>'.format(os.path.basename(filepath))
+        note[self.targetFields()[0]] = dest
+
+        if os.path.isfile(filepath):
+            os.remove(filepath)
+
+        return True
+
+    def get_file(self, text):
+        return bing_image(self.api_key, self.locale, text)
+
 def initialise(name='autopicture', source_fields=['picture_src'], 
-        target_field='picture', model_name_substring=None):
-    field_updater = GoogleImageFieldUpdater(source_fields, target_field)
+        target_field='picture', locale='en-GB', model_name_substring=None):
+    field_updater = BingImageFieldUpdater(source_fields, target_field, locale)
     Addon(field_updater, name, model_name_substring=model_name_substring)
