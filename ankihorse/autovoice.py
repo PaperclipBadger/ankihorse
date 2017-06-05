@@ -12,6 +12,8 @@ from aqt.utils import showInfo, getText
 from .config import CONFIG_FILE, ConfigParser
 from .cognitive_services import get_jwt, bing_tts, HTTPError, MALE, FEMALE
 from .updateraddon import Addon, AnySourceFieldUpdater
+from .sanitise import sanitise
+
 
 DIRECTORY = os.path.dirname(__file__)
 LANGUAGES = { "catalan": "ca-ES"
@@ -235,7 +237,7 @@ class BingTTSFieldUpdater(AnySourceFieldUpdater):
 
         """
         for f in filter(lambda f: f in note, self.sourceFields()):
-            query = mw.col.media.strip(note[f])
+            query = sanitise(mw.col.media.strip(note[f]))
             if query:
                 break
 

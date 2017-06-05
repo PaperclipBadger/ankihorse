@@ -11,6 +11,7 @@ from aqt.utils import showInfo, getText
 from .config import ConfigParser, CONFIG_FILE
 from .cognitive_services import bing_image
 from .updateraddon import Addon, FieldUpdater, AnySourceFieldUpdater
+from .sanitise import sanitise
 
 
 class GoogleImageFieldUpdater(FieldUpdater):
@@ -196,7 +197,7 @@ class BingImageFieldUpdater(AnySourceFieldUpdater):
 
         """
         for f in filter(lambda f: f in note, self.sourceFields()):
-            query = mw.col.media.strip(note[f])
+            query = sanitise(mw.col.media.strip(note[f]))
             if query:
                 break
 
