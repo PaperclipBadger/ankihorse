@@ -206,7 +206,7 @@ class BingImageFieldUpdater(AnySourceFieldUpdater):
 
         filepath = self.get_file(query.encode('utf-8'))
         mw.col.media.addFile(os.path.abspath(unicode(filepath)))
-        dest = u'<image src="{}"/>'.format(os.path.basename(filepath))
+        dest = u'<img src="{}"/>'.format(os.path.basename(filepath))
         note[self.targetFields()[0]] = dest
 
         if os.path.isfile(filepath):
