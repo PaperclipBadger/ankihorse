@@ -86,7 +86,7 @@ def _save_to_temp_file(response, suffix):
 
 # match japanese punctuation, which bing tts insists on reading out
 import re
-_punctuation = re.compile(r'(。|？|\.|?)')
+_punctuation = re.compile(u'[。？.?]')
 
 def bing_tts(jwt, locale, gender, text):
     """TTS from the Microsoft Cognitive Services Bing Speech API.
