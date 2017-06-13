@@ -85,6 +85,7 @@ def _save_to_temp_file(response, suffix):
     return path
 
 # match japanese punctuation, which bing tts insists on reading out
+import re
 _punctuation = re.compile(r'(。|？|\.|?)')
 
 def bing_tts(jwt, locale, gender, text):
