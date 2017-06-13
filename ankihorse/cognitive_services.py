@@ -1,3 +1,4 @@
+# -*- encoding: utf-8 -*-
 import json
 import os
 import tempfile
@@ -83,6 +84,9 @@ def _save_to_temp_file(response, suffix):
     #os.close(handle)
     return path
 
+# match japanese punctuation, which bing tts insists on reading out
+_punctuation = re.compile(r'(。|？|\.|?)')
+
 def bing_tts(jwt, locale, gender, text):
     """TTS from the Microsoft Cognitive Services Bing Speech API.
 
@@ -110,6 +114,9 @@ def bing_tts(jwt, locale, gender, text):
     if (locale, gender) not in VOICES:
         raise ValueError('No voice found for locale {} and gender {}'
                          .format(locale, gender))
+
+    # for some reason, bing tts now reads out full stops and question marks
+    if locale == 'ja-JP': text = _punctuation.sub('', text)
 
     url = 'https://speech.platform.bing.com/synthesize'
     headers = { 'Authorization': 'Bearer ' + jwt
