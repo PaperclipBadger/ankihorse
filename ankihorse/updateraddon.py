@@ -114,11 +114,45 @@ class AnySourceFieldUpdater(FieldUpdater):
         field_check = any(f in fields for f in self.source_fields)
         return self.target_field in fields and field_check
 
+class AnySourceAllTargetFieldUpdater(FieldUpdater):
+    def __init__(self, query_field_names, target_field_names):
+        """Initialiser.
+
+        Args:
+            source_field_names (Sequence[str]): the names of the source 
+                fields.
+            target_field_name (str): the name of the target field.
+
+        """
+        self.source_fields = query_field_names
+        self.target_fields = target_field_names
+
+    def sourceFields(self): return self.source_fields
+    def targetFields(self): return self.target_fields
+
+    def shouldModify(self, model):
+        """Tests whether a model should be modified.
+
+        Checks whether the model has any of the query fields and the
+        target field.
+
+        Args:
+            model (anki.models.Model): the model to check membership of.
+
+        Returns:
+            (bool) True iff the model should be modified.
+            
+        """
+        fields = mw.col.models.fieldNames(model)
+        return (any(f in fields for f in self.source_fields)
+                and all(f in fields for f in self.target_fields))
+
 class Addon():
     """An addon that updates note fields based on the content of others."""
     _initialised = False
 
-    def __init__(self, field_updater, addon_name, model_name_substring=None):
+    def __init__(self, field_updater, addon_name, model_name_substring=None,
+            on_focus_lost=False):
         """Initialises the addon.
 
         Adds a hook to 'editFocusLost' and adds a (re)generate all button to
@@ -129,6 +163,7 @@ class Addon():
             addon_name (str): the name of the addon.
             model_name_substring (str): if not None, only models that have
                 this string in their name will be modifi
+                on_focus_lost (bool): if True, add a hook to editFocusLost.
 
         """
         global button_action, menu_action
@@ -148,8 +183,9 @@ class Addon():
         self.name = addon_name
 
         # add hook
-        button_action.register_callback(self.modifyFields, addon_name)
-        #addHook('editFocusLost', self.onFocusLost)
+        button_action.register_callback(self.buttonCallback, addon_name)
+        if on_focus_lost:
+            addHook('editFocusLost', self.onFocusLost)
 
         # add menu item
         menu_action.register_callback(self.regenerateAll, addon_name)
@@ -191,6 +227,11 @@ class Addon():
         else:
             return False
 
+    def buttonCallback(self, note):
+        result = self.modifyFields(note)
+        note.flush()
+        return result
+
     def onFocusLost(self, flag, note, current_field_index):
         """Hook for 'editFocusLost'
 
@@ -207,7 +248,7 @@ class Addon():
             (bool) True if the note was modified, else `flag`.
 
         """
-        if current_field_index != None:
+        if current_field_index != None and self.shouldModify(note.model()):
             field_name = note.model()['flds'][current_field_index]['name']
             if field_name not in self._field_updater.sourceFields():
                 return flag

@@ -244,6 +244,9 @@ class BingTTSFieldUpdater(AnySourceFieldUpdater):
         if not query:
             return False
 
+        if note[self.target_field]:
+            return False
+
         gender = MALE if random.randrange(0, 2) else FEMALE
         filepath = self.get_file(gender, query)
         mw.col.media.addFile(os.path.abspath(unicode(filepath)))
@@ -269,6 +272,6 @@ class BingTTSFieldUpdater(AnySourceFieldUpdater):
 
 def initialise(name='autovoice', language='english', 
         source_fields=['voice_src'], target_field='voice',
-        model_name_substring=None):
+        model_name_substring=None, on_focus_lost=False):
     field_updater = BingTTSFieldUpdater(source_fields, target_field, language)
-    Addon(field_updater, name, model_name_substring=model_name_substring)
+    Addon(field_updater, name, model_name_substring, on_focus_lost)

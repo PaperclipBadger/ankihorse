@@ -184,7 +184,7 @@ class BingImageFieldUpdater(AnySourceFieldUpdater):
     def modifyFields(self, note):
         """Modifies the fields of note.
 
-        Downloads TTS from the Bing Speech api, adds it to the media 
+        Downloads and image from the Bing Image api, adds it to the media 
         database and updates the target field appropriately. Doesn't 
         modify the note if the all source fields are blank. Otherwise, 
         uses the first non-blank source field in `self._query_fields`.
@@ -204,6 +204,9 @@ class BingImageFieldUpdater(AnySourceFieldUpdater):
         if not query:
             return False
 
+        if note[self.target_field]:
+            return False
+
         filepath = self.get_file(query.encode('utf-8'))
         mw.col.media.addFile(os.path.abspath(unicode(filepath)))
         dest = u'<img src="{}" />'.format(os.path.basename(filepath))
@@ -218,6 +221,7 @@ class BingImageFieldUpdater(AnySourceFieldUpdater):
         return bing_image(self.api_key, self.locale, text)
 
 def initialise(name='autopicture', source_fields=['picture_src'], 
-        target_field='picture', locale='en-GB', model_name_substring=None):
+        target_field='picture', locale='en-GB', model_name_substring=None,
+        on_focus_lost=False):
     field_updater = BingImageFieldUpdater(source_fields, target_field, locale)
-    Addon(field_updater, name, model_name_substring=model_name_substring)
+    Addon(field_updater, name, model_name_substring, on_focus_lost)
