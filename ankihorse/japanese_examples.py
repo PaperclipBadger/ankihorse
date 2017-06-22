@@ -5,8 +5,9 @@
 #
 # Authors: Andreas Klauer, Guaillaume Viry, Johan de Jong
 # License: GPLv2
-
-# --- initialize kanji database ---
+#
+# Stolen from https://github.com/javdejong/japanese-examples
+# Integrated into the ankihorse framework by Blaine Rogers
 from aqt import mw
 from aqt.qt import *
 
