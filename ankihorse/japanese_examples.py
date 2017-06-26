@@ -83,7 +83,11 @@ class JapaneseExamplesFieldUpdater(AnySourceAllTargetFieldUpdater):
         if any(note[f] for f in self.target_fields):
             return False
 
-        japanese, english = self.find_examples(query, 1)[0]
+        results = self.find_examples(query, 1)
+        if not results:
+            return False
+
+        japanese, english = results[0]
         note[self.targetFields()[0]] = japanese
         note[self.targetFields()[1]] = english
         note[self.targetFields()[2]] = japanese.replace(query, u"（　）")
