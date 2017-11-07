@@ -168,8 +168,8 @@ class Addon():
         """
         global button_action, menu_action
 
-        if not self._initialised:
-            self._initialised = True
+        if not self.__class__._initialised:
+            self.__class__._initialised = True
             # set up menu action
             menu_action = NamedCallbackCollector()
             action = QAction("All field updater addons: regenerate all fields", 
